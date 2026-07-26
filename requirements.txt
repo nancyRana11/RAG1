@@ -29,3 +29,6 @@ pytest==8.3.3
 
 
 google-genai
+
+pytesseract==0.3.13
+Pillow==10.4.0

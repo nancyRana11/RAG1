@@ -39,6 +39,8 @@ if "processed_docs" not in st.session_state:
     st.session_state.processed_docs = {}   # doc_id -> ProcessedDocument
 if "chat_sessions" not in st.session_state:
     st.session_state.chat_sessions = {}    # doc_id -> ChatSession
+if "processing_in_progress" not in st.session_state:
+    st.session_state.processing_in_progress = set()  # doc_ids currently being processed
 
 # ------------------------------------------------------------------
 # Sidebar: config status + page navigation
@@ -117,17 +119,24 @@ if page == "📤 Upload & Analyze":
                     continue
 
                 status = cols[1]
-                status.success("✅ Processed") if already_processed else status.write("⏳ Not processed")
+                if already_processed:
+                    status.success("✅ Processed")
+                else:
+                    status.write("⏳ Not processed")
 
                 process_clicked = cols[2].button(
                     "Re-process" if already_processed else "Process",
                     key=f"process_{doc_id}",
                 )
 
-                if process_clicked or not already_processed:
+                already_in_progress = doc_id in st.session_state.processing_in_progress
+
+                if (process_clicked or not already_processed) and not already_in_progress:
                     if config_problems:
                         st.warning("Fix configuration problems in the sidebar before processing.")
                     else:
+                        st.session_state.processing_in_progress.add(doc_id)
+                        processing_succeeded = False
                         with st.spinner(f"Processing {uploaded_file.name}..."):
                             try:
                                 saved_path = save_uploaded_file(file_bytes, uploaded_file.name)
@@ -141,10 +150,14 @@ if page == "📤 Upload & Analyze":
                                     run_ocr=run_ocr,
                                 )
                                 st.session_state.processed_docs[doc_id] = doc
-                                st.rerun()
+                                processing_succeeded = True
                             except Exception as e:
                                 logger.exception("Processing failed")
                                 st.error(f"Processing failed: {e}")
+                            finally:
+                                st.session_state.processing_in_progress.discard(doc_id)
+                        if processing_succeeded:
+                            st.rerun()
 
     st.divider()
 

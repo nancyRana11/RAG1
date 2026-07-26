@@ -16,6 +16,7 @@ from pathlib import Path
 
 from src.document_processing.pdf_extractor import extract_text, PDFExtractionResult
 from src.document_processing.text_cleaner import clean_text, basic_stats
+from src.document_processing.ocr_processor import apply_ocr_fallback, is_ocr_available
 from src.ai.summarizer import generate_summary, generate_key_points
 from src.ai.metadata_extractor import extract_metadata
 from src.ai.llm_client import LLMClient
@@ -32,6 +33,7 @@ class ProcessedDocument:
     summary: str = ""
     key_points: list[str] = field(default_factory=list)
     metadata: dict = field(default_factory=dict)
+    ocr_applied: bool = False
 
 
 def process_document(
@@ -41,6 +43,7 @@ def process_document(
     run_summary: bool = True,
     run_key_points: bool = True,
     run_metadata: bool = True,
+    run_ocr: bool = True,
 ) -> ProcessedDocument:
     """
     Runs the full Phase 1 pipeline on a single PDF file.
@@ -52,13 +55,22 @@ def process_document(
 
     # Step 1: extract raw text from the PDF
     extraction = extract_text(pdf_path)
+    ocr_applied = False
 
-    if extraction.scanned_page_ratio > 0.5:
-        logger.warning(
-            f"{pdf_path.name} looks like a scanned document "
-            f"({extraction.scanned_page_ratio:.0%} pages with little/no text). "
-            "OCR support is added in Phase 2 — text below may be incomplete."
+    if extraction.scanned_page_ratio > 0:
+        logger.info(
+            f"{pdf_path.name}: {extraction.scanned_page_ratio:.0%} of pages look scanned "
+            "(little/no extractable text)."
         )
+        if run_ocr:
+            if is_ocr_available():
+                extraction = apply_ocr_fallback(str(pdf_path), extraction)
+                ocr_applied = True
+            else:
+                logger.warning(
+                    "Tesseract OCR is not installed on this system — scanned pages "
+                    "will remain empty. See README for install instructions."
+                )
 
     # Step 2: clean the text
     cleaned = clean_text(extraction.full_text)
@@ -70,6 +82,7 @@ def process_document(
         extraction=extraction,
         cleaned_text=cleaned,
         stats=stats,
+        ocr_applied=ocr_applied,
     )
 
     if not cleaned.strip():

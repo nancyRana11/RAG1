@@ -33,6 +33,10 @@ import io
 from PIL import Image
 import pytesseract
 
+pytesseract.pytesseract.tesseract_cmd = (
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+)
+
 from src.document_processing.pdf_extractor import PDFExtractionResult, render_page_as_image
 from src.utils.logger import logger
 
