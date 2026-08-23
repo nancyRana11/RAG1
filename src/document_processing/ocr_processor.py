@@ -32,10 +32,19 @@ import io
 
 from PIL import Image
 import pytesseract
+import shutil
+import pytesseract
 
-pytesseract.pytesseract.tesseract_cmd = (
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-)
+tesseract_path = shutil.which("tesseract")
+
+if tesseract_path:
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+else:
+    raise RuntimeError("Tesseract is not installed or not in PATH")
+
+# pytesseract.pytesseract.tesseract_cmd = (
+#     r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# )
 
 from src.document_processing.pdf_extractor import PDFExtractionResult, render_page_as_image
 from src.utils.logger import logger
