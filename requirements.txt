@@ -81,3 +81,4 @@ uvicorn==0.52.4
 watchdog==4.0.2
 websockets==16.1
 win32_setctime==1.2.0
+langchain-text-splitters
